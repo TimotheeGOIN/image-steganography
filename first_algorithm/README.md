@@ -27,9 +27,25 @@ The first one is the units (third) digit of this byte in decimal that we multipl
 
 Then we get the parity of the second digit of the byte in decimal. If it's even, we do nothing, but if it's odd, we add 1 to the previous calculated number.
 
-With that, we can have **all** numbers between 0 and 19 inclusive. But we will actually use numbers between 0 and 15.
+- With that, we can have **all** numbers between 0 and 19 inclusive. But we will actually use numbers between 0 and 15.
 
 ### Now, computing those numbers to get the hidden 4 bits.
+
+- Now we have, let's say the position number as `pos_number = third_digit * 2 + second_digit % 2` in python.
+
+This number could be directly converted into 4 bits but let's add a bit of a complexity (really simple ^^). So we flip the bits right to left.
+For example, 1101 becomes 1011. Then we reverse the bits so 1011 becomes 0100.
+
+- And THIS is the final hidden value (in this example 0100) in this byte.
+
+## Conclusion and performances :
+
+This algorithm can store 4 hidden bits in each byte of an image. This algorithm manipulates only the R, G and B value of the pixels so, in an image of width by height dimensions we can roughly store `width*height*3*4` bits of data.
+Which is for a FHD (1920x1080) image a total of `1920*1080*3*4` = **24 883 200 bits** or **3 110 400 bytes** (~ 3MB of raw data)
+
+
+
+
 
 
 
