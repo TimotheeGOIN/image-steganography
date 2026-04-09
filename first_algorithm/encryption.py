@@ -22,6 +22,28 @@ def string_to_binary(text: str) -> list[str]:
     return bytes_list
 
 
+def binary_to_string(binary_str: str) -> str:
+    """
+    Converts binary value (in a string) to a string. The provided binary value must be cleared (only bits), without
+    notations like 0bXXXXXXXX, only XXXXXXXX as 0's and 1's
+    :param binary_str: The binary value we want to convert into a string.
+    :return: A string, the binary value converted.
+    """
+
+    # ensure the binary value comes in bytes
+    if len(binary_str) % 8 != 0:
+        raise ValueError("Binary string length must be a multiple of 8.")
+
+    converted_string = ""
+
+    for i in range(0, len(binary_str), 8):
+
+        byte = binary_str[i:i+8]
+        converted_string += chr(int(byte, 2))
+
+    return converted_string
+
+
 def check_storage(message: str, image: Image) -> bool:
     """
     This function checks if the provided image is big enough to contain the message when encrypted. Returns a boolean
@@ -73,7 +95,6 @@ def get_closest(actual_number: int, second_digit_parity: int, third_digit: int) 
     :param third_digit: Third digit value
     :return: An integer
     """
-    print(actual_number, second_digit_parity, third_digit)
 
     actual_number = str(actual_number).zfill(3)
 
@@ -86,7 +107,6 @@ def get_closest(actual_number: int, second_digit_parity: int, third_digit: int) 
     elif int(actual_number[2]) <= 4:
         closest_number = str(actual_number[0]) + str(int(actual_number[1]) - 1) + str(third_digit)
 
-    print(closest_number)
     return int(closest_number)
 
 
@@ -100,10 +120,17 @@ def encrypt(message: str, image: Image) -> Image:
     """
 
     # get all the pixels in the image in a list
-    image_data = list(image.getdata())
+    image_data = list(image.get_flattened_data())
 
     # convert the message in bytes
     message_bytes = string_to_binary(message)
+
+    # get the message lenght (number of bytes) in binary
+    message_bytes_lenght = bin(len(message_bytes) // 8 + 4)[2:]
+
+    message_bytes_lenght = [message_bytes_lenght[i:i+4] for i in range(0, len(message_bytes_lenght), 4)]
+
+    message_bytes = message_bytes_lenght + message_bytes
 
     # check if the image is big enough to contain the message
     if not check_storage(message, image):
@@ -150,6 +177,52 @@ def encrypt(message: str, image: Image) -> Image:
 
     return new_image_data
 
+
+def decrypt(image: Image) -> str:
+    """
+    This function takes in an Image and decrypts the hidden message in it with this first algorithm.
+    :param image: The image (as PIL.Image object) we will extract the hidden data.
+    :return: The hidden data in this images in binary as a string.
+    """
+
+    # get all the pixels in the image in a list
+    image_data = list(image.get_flattened_data())
+
+    # set the decrypted bits
+    decrypted_bits = ""
+
+    half_byte_index = 0
+
+    # we cycle through each tuple and each byte (excluding the alpha byte of each pixel)
+    for pixel in image_data:
+        for color_byte in pixel:
+
+            # not using the alpha byte (the 4th value in the pixel)
+            if color_byte == pixel[3]:
+                continue  # skip
+
+            half_byte_index += 1
+
+            # ensure the byte (in decimal) is a string and 3 numbers long
+            color_byte = str(color_byte).zfill(3)
+
+            second_digit_parity = int(color_byte[1]) % 2
+            third_digit = int(color_byte[2]) * 2
+
+            half_byte_decimal = bin(third_digit+second_digit_parity)
+            # get rid of the 0bXXXX notation and ensure that its 4 chars long
+            half_byte_decimal = half_byte_decimal[2:].zfill(4)
+
+            decrypted_bits += half_byte_decimal
+
+
+            if len(decrypted_bits) >= 32: # lenght of the 4 first bytes
+                print("WAZAAAAAAAAAAAAA")
+                if half_byte_index == int(decrypted_bits[:32], 2) - 1:
+                    print("OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO")
+                    return decrypted_bits
+
+
 a = encrypt("bonjour", base_image)
 
 print(a)
@@ -160,7 +233,12 @@ print("eeeeeeeeeeeeeeeeeee")
 base_image.show()
 ni.show()
 
-print("oui")
+print("Decryption")
+decrypted = decrypt(ni)
+print(decrypted)
+
+print(binary_to_string(decrypted))
+
 
 
 
