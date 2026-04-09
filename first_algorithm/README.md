@@ -18,6 +18,7 @@ With that said, I think shifting the second digit (to the inferior or superior o
 ## Let's describe and explain that algorithm :
 
 - Notice that this algo works with 1 byte of the image at a time (not one pixel). So an image will be treated as a list of bytes (in decimal) rather than a list of pixels. In 1 bytes of an image, half a byte (4 bits) can be stored, hidden.
+- Note that the first 4 bytes encrypted in an image specify the lenght of the encrypted message (including these 4 bytes).
 
 In this algo, the first digit of all bytes is pretty useless.
 
@@ -40,7 +41,7 @@ For example, 1101 becomes 1011. Then we reverse the bits so 1011 becomes 0100.
 
 ## Conclusion and performances :
 
-This algorithm can store 4 hidden bits in each byte of an image. This algorithm manipulates only the R, G and B value of the pixels so, in an image of width by height dimensions we can roughly store `width*height*3*4` bits of data.
+This algorithm can store 4 hidden bits in each byte of an image. This algorithm manipulates only the R, G and B value of the pixels so, in an image of size width by height, we can roughly store `width*height*3*4` bits of data.
 Which is for a FHD (1920x1080) image a total of `1920*1080*3*4` = **24 883 200 bits** or **3 110 400 bytes** (~ 3MB of raw data)
 
 
