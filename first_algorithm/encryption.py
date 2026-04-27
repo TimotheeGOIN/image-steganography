@@ -98,14 +98,16 @@ def get_closest(actual_number: int, second_digit_parity: int, third_digit: int) 
 
     actual_number = str(actual_number).zfill(3)
 
+    # if the second digit parity is the same as the one provided
+    # the closest number is necessarily the one with the same first two digits and the provided third digit
     if int(actual_number[1]) % 2 == second_digit_parity:
         closest_number = actual_number[:2] + str(third_digit)
 
     elif int(actual_number[2]) >= 5:
-        closest_number = str(actual_number[0]) + str(int(actual_number[1]) + 1) + str(third_digit)
+        closest_number = int(actual_number) + (10 - (int(actual_number[2]) - third_digit))
 
     elif int(actual_number[2]) <= 4:
-        closest_number = str(actual_number[0]) + str(int(actual_number[1]) - 1) + str(third_digit)
+        closest_number = int(actual_number) - (10 - (third_digit - int(actual_number[2])))
 
     return int(closest_number)
 
@@ -143,8 +145,6 @@ def encrypt(message: str, image: Image) -> Image:
 
     new_image_data = []
 
-    print(message_bytes, "message bytes")
-
     # we cycle through each tuple and each byte (excluding the alpha byte of each pixel)
     for pixel in image_data:
 
@@ -156,28 +156,35 @@ def encrypt(message: str, image: Image) -> Image:
                 new_pixel.append(color_byte)
                 continue # skip
 
-            # the half_byte_index cycles for each 4 bits in the message (in bytes),
-            # so every 2 steps, we get to the next byte in the message
-            current_message_byte = message_bytes[half_byte_index//2]
+            # when the entier message is encrypted, an IndexError will be thrown
+            try:
 
-            # the 4 bits of the byte we work on depend on the parity of the index
-            parity_index = 4*(half_byte_index%2)
-            current_half_byte = current_message_byte[parity_index:4+parity_index]
+                # the half_byte_index cycles for each 4 bits in the message (in bytes),
+                # so every 2 steps, we get to the next byte in the message
+                current_message_byte = message_bytes[half_byte_index//2]
 
-            # now, we convert the current half-byte in decimal
-            decimal_half_byte = int(current_half_byte, 2)
+                # the 4 bits of the byte we work on depend on the parity of the index
+                parity_index = 4*(half_byte_index%2)
+                current_half_byte = current_message_byte[parity_index:4+parity_index]
 
-            # determine the parity of this number (0: even, 1: odd)
-            decimal_half_byte_parity = decimal_half_byte % 2
+                # now, we convert the current half-byte in decimal
+                decimal_half_byte = int(current_half_byte, 2)
 
-            cut_decimal_half_byte = decimal_half_byte - decimal_half_byte_parity
+                # determine the parity of this number (0: even, 1: odd)
+                decimal_half_byte_parity = decimal_half_byte % 2
 
-            # modifying the color bite to hide data in it
-            new_color_byte = get_closest(int(color_byte), decimal_half_byte_parity, cut_decimal_half_byte//2)
+                cut_decimal_half_byte = decimal_half_byte - decimal_half_byte_parity
 
-            new_pixel.append(new_color_byte)
+                # modifying the color bite to hide data in it
+                new_color_byte = get_closest(int(color_byte), decimal_half_byte_parity, cut_decimal_half_byte//2)
 
-            half_byte_index += 1
+                new_pixel.append(new_color_byte)
+
+                half_byte_index += 1
+
+            # catch this error means the message has been fully encrypted, now we just copy the pixels as they were in the new image
+            except IndexError:
+                new_pixel.append(color_byte)
 
         new_image_data.append(new_pixel)
 
@@ -226,9 +233,9 @@ def decrypt(image: Image) -> str | None:
 
 
             if len(decrypted_bits) >= 32: # lenght of the 4 first bytes
-                print("WAZAAAAAAAAAAAAA")
+
                 if half_byte_index == int(decrypted_bits[:32], 2) - 1:
-                    print("OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO")
+
                     return decrypted_bits
     return None
 
@@ -246,11 +253,9 @@ print("Decryption...")
 decrypted = decrypt(newimage)
 print("Decrypted !")
 
+print(f"{decrypted = }")
 
-print(decrypted)
-
-
-print(binary_to_string(decrypted))
+print(f"{binary_to_string(decrypted) = }")
 
 
 
