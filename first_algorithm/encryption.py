@@ -125,12 +125,14 @@ def encrypt(message: str, image: Image) -> Image:
     # convert the message in bytes
     message_bytes = string_to_binary(message)
 
-    # get the message lenght (number of bytes) in binary
-    message_bytes_lenght = bin(len(message_bytes) // 8 + 4)[2:]
+    # compute the lenght of the message in bytes (plus the 4 bytes for the lenght of the message itself)
+    message_lenght_in_bytes = bin(len(message_bytes) + 4)[2:].zfill(32)
 
-    message_bytes_lenght = [message_bytes_lenght[i:i+4] for i in range(0, len(message_bytes_lenght), 4)]
+    # convert the 32 bits (4 bytes) from a single string to 4 separated strings in a list
+    message_lenght_in_bytes = [message_lenght_in_bytes[i:i+8] for i in range(0, len(message_lenght_in_bytes), 8)]
 
-    message_bytes = message_bytes_lenght + message_bytes
+    # concatenate the lists to get the final message including the message lenght + the message
+    message_bytes = message_lenght_in_bytes + message_bytes
 
     # check if the image is big enough to contain the message
     if not check_storage(message, image):
@@ -140,6 +142,8 @@ def encrypt(message: str, image: Image) -> Image:
     current_message_byte = message_bytes[0]
 
     new_image_data = []
+
+    print(message_bytes, "message bytes")
 
     # we cycle through each tuple and each byte (excluding the alpha byte of each pixel)
     for pixel in image_data:
@@ -173,12 +177,14 @@ def encrypt(message: str, image: Image) -> Image:
 
             new_pixel.append(new_color_byte)
 
+            half_byte_index += 1
+
         new_image_data.append(new_pixel)
 
     return new_image_data
 
 
-def decrypt(image: Image) -> str:
+def decrypt(image: Image) -> str | None:
     """
     This function takes in an Image and decrypts the hidden message in it with this first algorithm.
     :param image: The image (as PIL.Image object) we will extract the hidden data.
@@ -203,7 +209,7 @@ def decrypt(image: Image) -> str:
 
             half_byte_index += 1
 
-            # ensure the byte (in decimal) is a string and 3 numbers long
+            # ensure the byte (in decimal) is a 3-character long string
             color_byte = str(color_byte).zfill(3)
 
             second_digit_parity = int(color_byte[1]) % 2
@@ -213,7 +219,10 @@ def decrypt(image: Image) -> str:
             # get rid of the 0bXXXX notation and ensure that its 4 chars long
             half_byte_decimal = half_byte_decimal[2:].zfill(4)
 
+            print(half_byte_decimal)
             decrypted_bits += half_byte_decimal
+
+            print(decrypted_bits)
 
 
             if len(decrypted_bits) >= 32: # lenght of the 4 first bytes
@@ -221,24 +230,27 @@ def decrypt(image: Image) -> str:
                 if half_byte_index == int(decrypted_bits[:32], 2) - 1:
                     print("OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO")
                     return decrypted_bits
+    return None
 
 
-a = encrypt("bonjour", base_image)
+secret_image = encrypt("bonjour", base_image)
+print(secret_image)
 
-print(a)
-
-ni = recreate_image(base_image.size, a)
-print("eeeeeeeeeeeeeeeeeee")
+newimage = recreate_image(base_image.size, secret_image)
 
 base_image.show()
-ni.show()
+newimage.show()
 
-print("Decryption")
-decrypted = decrypt(ni)
+
+print("Decryption...")
+decrypted = decrypt(newimage)
+print("Decrypted !")
+
+
 print(decrypted)
 
-print(binary_to_string(decrypted))
 
+print(binary_to_string(decrypted))
 
 
 
