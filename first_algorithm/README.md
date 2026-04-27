@@ -20,7 +20,7 @@ With that said, I think shifting the second digit (to the inferior or superior o
 - Notice that this algo works with 1 byte of the image at a time (not one pixel). So an image will be treated as a list of bytes (in decimal) rather than a list of pixels. In 1 bytes of an image, half a byte (4 bits) can be stored, hidden.
 - Note that the first 4 bytes encrypted in an image specify the lenght of the encrypted message (including these 4 bytes).
 
-In this algo, the first digit of all bytes is pretty useless.
+In this algo, the first digit of all color bytes in decimal is pretty useless (000 <= XYZ <= 255, the X is never used).
 
 ### This byte (pixel R, G or B value) holds two hidden values.
 
@@ -38,6 +38,11 @@ This number could be directly converted into 4 bits but let's add a bit of a com
 For example, 1101 becomes 1011. Then we reverse the bits so 1011 becomes 0100.
 
 - And THIS is the final hidden value (in this example 0100) in this byte.
+
+
+## Details about how the closest number is found :
+
+When encoding a value in a decimal color byte (in the parity of the second digit and the value of the third digit), the closest number that satisfies these two requirements (2nd digit parity and 3rd digit value) is considered as the inferior of superior one. If the last digit of the decimal byte we want to encode something in is under 5 (<5) or over 5 (>=5) we consider the closest number to the inferior/superior one.
 
 ## Conclusion and performances :
 
