@@ -67,7 +67,7 @@ def check_storage(message: str, image: Image) -> bool:
         return False
 
 
-def recreate_image(size: tuple[int, int], image_data: list[tuple[int, ...]]) -> Image:
+def recreate_image(size: tuple[int, int], image_data: list[tuple[int, ...]], debug_prints: bool=False) -> Image:
     """
     This function reconstructs a Pillow Image with a list of pixels (tuples of integers).
     :param size: The size of the image.
@@ -77,11 +77,15 @@ def recreate_image(size: tuple[int, int], image_data: list[tuple[int, ...]]) -> 
 
     new_image = Image.new("RGBA", size)
 
+    if debug_prints: print("Starting image reconstitution...")
+
     for y in range(size[1]):
         for x in range(size[0]):
 
             i = y*size[0] + x
             new_image.putpixel((x, y), tuple(image_data[i]))
+
+        if debug_prints: print(f"Row {y+1}/{size[1]} reconstituted.")
 
     return new_image
 
@@ -112,7 +116,7 @@ def get_closest(actual_number: int, second_digit_parity: int, third_digit: int) 
     return int(closest_number)
 
 
-def encrypt(message: str, image: Image) -> Image:
+def encrypt(message: str, image: Image, debug_prints: bool=False) -> list[tuple[int, ...]]:
     """
     This function takes in the data of an image (here a list of pixels) and encrypts the given message in this image data
     with the first algorithm. This one is fully detailed on the GitHub project.
@@ -128,10 +132,10 @@ def encrypt(message: str, image: Image) -> Image:
     message_bytes = string_to_binary(message)
 
     # compute the lenght of the message in bytes (plus the 4 bytes for the lenght of the message itself)
-    message_lenght_in_bytes = bin(len(message_bytes) + 4)[2:].zfill(32)
+    message_lenght = bin(len(message_bytes) + 4)[2:].zfill(32)
 
     # convert the 32 bits (4 bytes) from a single string to 4 separated strings in a list
-    message_lenght_in_bytes = [message_lenght_in_bytes[i:i+8] for i in range(0, len(message_lenght_in_bytes), 8)]
+    message_lenght_in_bytes = [message_lenght[i:i+8] for i in range(0, len(message_lenght), 8)]
 
     # concatenate the lists to get the final message including the message lenght + the message
     message_bytes = message_lenght_in_bytes + message_bytes
@@ -144,6 +148,8 @@ def encrypt(message: str, image: Image) -> Image:
     current_message_byte = message_bytes[0]
 
     new_image_data = []
+
+    if debug_prints: print("Starting encryption...")
 
     # we cycle through each tuple and each byte (excluding the alpha byte of each pixel)
     for pixel in image_data:
@@ -186,12 +192,14 @@ def encrypt(message: str, image: Image) -> Image:
             except IndexError:
                 new_pixel.append(color_byte)
 
+        if debug_prints: print(f"{(half_byte_index/2)*100/int(message_lenght, 2):.2f}% of the message encrypted")
+
         new_image_data.append(new_pixel)
 
     return new_image_data
 
 
-def decrypt(image: Image) -> str | None:
+def decrypt(image: Image, debug_prints: bool=False) -> str | None:
     """
     This function takes in an Image and decrypts the hidden message in it with this first algorithm.
     :param image: The image (as PIL.Image object) we will extract the hidden data.
@@ -226,11 +234,12 @@ def decrypt(image: Image) -> str | None:
             # get rid of the 0bXXXX notation and ensure that its 4 chars long
             half_byte_decimal = half_byte_decimal[2:].zfill(4)
 
-            print(half_byte_decimal)
+            #print(half_byte_decimal)
             decrypted_bits += half_byte_decimal
 
-            print(decrypted_bits)
+            #print(decrypted_bits)
 
+            if debug_prints: print(f"{(half_byte_index / 2) * 100 / (int(decrypted_bits[:32], 2) - 1):.2f}% of the message decrypted")
 
             if len(decrypted_bits) >= 32: # lenght of the 4 first bytes
 
@@ -257,6 +266,28 @@ print(f"{decrypted = }")
 
 print(f"{binary_to_string(decrypted) = }")
 
+
+"""image_file_path = "C:/Users/timot/Python Projects/Steganography/first_algorithm/images/fhd_image_2.png"
+base_image = Image.open(image_file_path).convert("RGBA")
+
+with open("C:/Users/timot/Python Projects/Steganography/big_text.txt", "r") as file:
+    big_text = file.read()
+
+new_image_data = encrypt(big_text, base_image, debug_prints=True)
+
+new_image = recreate_image(base_image.size, new_image_data, debug_prints=True)
+
+new_image.show("New Image")
+base_image.show("Base Image")
+
+# check the hidden message
+hidden_message_bin = decrypt(new_image, debug_prints=True)
+
+print(f"{len(hidden_message_bin) = }")
+
+with open("C:/Users/timot/Python Projects/Steganography/hidden_message.txt", "w", encoding="utf-8") as f:
+
+    f.write("oui")"""
 
 
 
