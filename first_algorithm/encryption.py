@@ -1,3 +1,5 @@
+from email import message_from_file
+from operator import index
 
 from PIL import Image
 
@@ -90,30 +92,34 @@ def recreate_image(size: tuple[int, int], image_data: list[tuple[int, ...]], deb
     return new_image
 
 
-def get_closest(actual_number: int, second_digit_parity: int, third_digit: int) -> int:
+def get_closest(current_number: int, second_digit_parity: int, third_digit: int) -> int:
     """
     This function takes in a number and outputs the closest number, to the given one, that has its second digit parity and
     third digit value the same as provided.
-    :param actual_number: An integer, the normal number we want the closest to
+    :param current_number: An integer, the normal number we want the closest to
     :param second_digit_parity: Parity of the second digit number. Either 0 (even) or 1 (odd)
     :param third_digit: Third digit value
     :return: An integer
     """
 
-    actual_number = str(actual_number).zfill(3)
+    # the first element of the candidate list
+    base_candidate = third_digit + 10 * second_digit_parity
 
-    # if the second digit parity is the same as the one provided
-    # the closest number is necessarily the one with the same first two digits and the provided third digit
-    if int(actual_number[1]) % 2 == second_digit_parity:
-        closest_number = actual_number[:2] + str(third_digit)
+    # all valid candidates are offset by 20
+    candidates = []
 
-    elif int(actual_number[2]) >= 5:
-        closest_number = int(actual_number) + (10 - (int(actual_number[2]) - third_digit))
+    for k in range(13): # we only need to check 13 candidates because 20*13 = 260 > 255, so we are sure to have covered all possible candidates in the range [0,255]
+        if 0 <= (base_candidate + 20 * k) <= 255:
+            candidates.append(base_candidate + 20 * k)
 
-    elif int(actual_number[2]) <= 4:
-        closest_number = int(actual_number) - (10 - (third_digit - int(actual_number[2])))
+    # we get the absolute of the difference between the current number, and the candidate for each candidate
+    # the smallest gap indicates which candidate is the closest of the actual
+    gaps_list = [abs(current_number-candidate) for candidate in candidates]
 
-    return int(closest_number)
+    # we use the lowest gap index in this list to get the closest candidate in the candidate list (because there are as many numbers in these 2 lists)
+    smallest_gap_index = gaps_list.index(min(gaps_list))
+
+    return candidates[smallest_gap_index]
 
 
 def encrypt(message: str, image: Image, debug_prints: bool=False) -> list[tuple[int, ...]]:
@@ -230,64 +236,81 @@ def decrypt(image: Image, debug_prints: bool=False) -> str | None:
             second_digit_parity = int(color_byte[1]) % 2
             third_digit = int(color_byte[2]) * 2
 
-            half_byte_decimal = bin(third_digit+second_digit_parity)
+            half_byte_bin = bin(third_digit+second_digit_parity)
             # get rid of the 0bXXXX notation and ensure that its 4 chars long
-            half_byte_decimal = half_byte_decimal[2:].zfill(4)
+            half_byte_bin = half_byte_bin[2:].zfill(4)
 
-            #print(half_byte_decimal)
-            decrypted_bits += half_byte_decimal
+            decrypted_bits += half_byte_bin
 
-            #print(decrypted_bits)
+            #if debug_prints: print(f"{half_byte_index*100 / (int(decrypted_bits[:32], 2)*2 + 1):.2f}% of the message decrypted")
 
-            if debug_prints: print(f"{(half_byte_index / 2) * 100 / (int(decrypted_bits[:32], 2) - 1):.2f}% of the message decrypted")
+
 
             if len(decrypted_bits) >= 32: # lenght of the 4 first bytes
 
-                if half_byte_index == int(decrypted_bits[:32], 2) - 1:
+                #if debug_prints: print(f"{half_byte_index*25 / int(decrypted_bits[:32], 2)*2:.2f}% decrypted")
 
-                    return decrypted_bits
+                # stop and return if the number of bits decrypted is the same as the number of bits of the message
+                if half_byte_index == int(decrypted_bits[:32], 2)*2:
+
+                    # return the message in binary without the message lenght header
+                    return decrypted_bits[32:]
     return None
-
-
-secret_image = encrypt("bonjour", base_image)
-print(secret_image)
-
-newimage = recreate_image(base_image.size, secret_image)
-
-base_image.show()
-newimage.show()
-
-
-print("Decryption...")
-decrypted = decrypt(newimage)
-print("Decrypted !")
-
-print(f"{decrypted = }")
-
-print(f"{binary_to_string(decrypted) = }")
 
 
 """image_file_path = "C:/Users/timot/Python Projects/Steganography/first_algorithm/images/fhd_image_2.png"
 base_image = Image.open(image_file_path).convert("RGBA")
 
+message = "Ceci est un exemple de texte simple qui sera répété pour atteindre la taille demandée. "
+
+new_image_data = encrypt(message, base_image)
+print(new_image_data)
+
+new_image = recreate_image(base_image.size, new_image_data)
+
+base_image.show()
+new_image.show()
+
+# verify the hidden data
+decrypted = decrypt(new_image, debug_prints=True)
+
+print(f"{decrypted = }")
+print(f"{string_to_binary(message) = }")
+
+print(f"{binary_to_string(decrypted) = }")"""
+
+
+
+image_file_path = "C:/Users/timot/Python Projects/Steganography/first_algorithm/images/fhd_image_2.png"
+base_image = Image.open(image_file_path).convert("RGBA")
+
+message = "Ceci est un exemple de texte simple qui sera répété pour atteindre la taille demandée. "
 with open("C:/Users/timot/Python Projects/Steganography/big_text.txt", "r") as file:
-    big_text = file.read()
+    message = file.read()
 
-new_image_data = encrypt(big_text, base_image, debug_prints=True)
+new_image_data = encrypt(message, base_image)
+print(new_image_data)
 
-new_image = recreate_image(base_image.size, new_image_data, debug_prints=True)
+new_image = recreate_image(base_image.size, new_image_data)
 
-new_image.show("New Image")
-base_image.show("Base Image")
+base_image.show()
+new_image.show()
 
-# check the hidden message
-hidden_message_bin = decrypt(new_image, debug_prints=True)
+# verify the hidden data
+decrypted = decrypt(new_image, debug_prints=True)
 
-print(f"{len(hidden_message_bin) = }")
+decrypted_string = binary_to_string(decrypted)
 
-with open("C:/Users/timot/Python Projects/Steganography/hidden_message.txt", "w", encoding="utf-8") as f:
+print(f"{len(decrypted_string) = }")
 
-    f.write("oui")"""
+with open("C:/Users/timot/Python Projects/Steganography/hidden_message.txt", "w") as f:
+
+    f.write(decrypted_string)
+
+"""print(f"{decrypted = }")
+print(f"{string_to_binary(message) = }")
+
+print(f"{binary_to_string(decrypted) = }")"""
 
 
 
