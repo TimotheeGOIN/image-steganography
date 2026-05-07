@@ -1,13 +1,19 @@
-from email import message_from_file
-from operator import index
+
+import sys, os
 
 from PIL import Image
 
-# get the image and convert it to RGBA
+"""# get the image and convert it to RGBA
 image_file_path = "C:/Users/timot/Python Projects/Steganography/first_algorithm/images/img.png"
 base_image = Image.open(image_file_path).convert("RGBA")
 
+# check in which form this script is executed (as a .py or as a .exe)
+if getattr(sys, 'frozen', False): # executed as a .exe (compiled with PyInstaller because sys.frozen is added by PyInstaller)
+    running_as_exe = True
+else: # executed as a .py
+    running_as_exe = False"""
 
+# utils for the algorithm
 def string_to_binary(text: str) -> list[str]:
     """
     This function converts a string to its binary representation
@@ -46,7 +52,26 @@ def binary_to_string(binary_str: str) -> str:
     return converted_string
 
 
-def check_storage(message: str, image: Image) -> bool:
+def recreate_image(size: tuple[int, int], image_data: list[tuple[int, ...]]) -> Image:
+    """
+    This function reconstructs a Pillow Image with a list of pixels (tuples of integers).
+    :param size: The size of the image.
+    :param image_data: The list of pixels (list of tuples of integers)
+    :return: An image as a PIL.Image object
+    """
+
+    new_image = Image.new("RGBA", size)
+
+    for y in range(size[1]):
+        for x in range(size[0]):
+
+            i = y*size[0] + x
+            new_image.putpixel((x, y), tuple(image_data[i]))
+
+    return new_image
+
+
+def check_image_storage_capacity(message: str, image: Image) -> bool:
     """
     This function checks if the provided image is big enough to contain the message when encrypted. Returns a boolean
     depending on whether there is enough space or not.
@@ -69,29 +94,11 @@ def check_storage(message: str, image: Image) -> bool:
         return False
 
 
-def recreate_image(size: tuple[int, int], image_data: list[tuple[int, ...]], debug_prints: bool=False) -> Image:
-    """
-    This function reconstructs a Pillow Image with a list of pixels (tuples of integers).
-    :param size: The size of the image.
-    :param image_data: The list of pixels (list of tuples of integers)
-    :return: An image as a PIL.Image object
-    """
-
-    new_image = Image.new("RGBA", size)
-
-    if debug_prints: print("Starting image reconstitution...")
-
-    for y in range(size[1]):
-        for x in range(size[0]):
-
-            i = y*size[0] + x
-            new_image.putpixel((x, y), tuple(image_data[i]))
-
-        if debug_prints: print(f"Row {y+1}/{size[1]} reconstituted.")
-
-    return new_image
+def create_output_path() -> str:
+    pass
 
 
+# algorithm's main functions
 def get_closest(current_number: int, second_digit_parity: int, third_digit: int) -> int:
     """
     This function takes in a number and outputs the closest number, to the given one, that has its second digit parity and
@@ -122,7 +129,7 @@ def get_closest(current_number: int, second_digit_parity: int, third_digit: int)
     return candidates[smallest_gap_index]
 
 
-def encrypt(message: str, image: Image, debug_prints: bool=False) -> list[tuple[int, ...]]:
+def encrypt(message: str, image: Image) -> list[tuple[int, ...]]:
     """
     This function takes in the data of an image (here a list of pixels) and encrypts the given message in this image data
     with the first algorithm. This one is fully detailed on the GitHub project.
@@ -147,15 +154,13 @@ def encrypt(message: str, image: Image, debug_prints: bool=False) -> list[tuple[
     message_bytes = message_lenght_in_bytes + message_bytes
 
     # check if the image is big enough to contain the message
-    if not check_storage(message, image):
+    if not check_image_storage_capacity(message, image):
         raise Exception("The message is too big to be encrypted in the given image.")
 
     half_byte_index = 0
     current_message_byte = message_bytes[0]
 
     new_image_data = []
-
-    if debug_prints: print("Starting encryption...")
 
     # we cycle through each tuple and each byte (excluding the alpha byte of each pixel)
     for pixel in image_data:
@@ -198,14 +203,12 @@ def encrypt(message: str, image: Image, debug_prints: bool=False) -> list[tuple[
             except IndexError:
                 new_pixel.append(color_byte)
 
-        if debug_prints: print(f"{(half_byte_index/2)*100/int(message_lenght, 2):.2f}% of the message encrypted")
-
         new_image_data.append(new_pixel)
 
     return new_image_data
 
 
-def decrypt(image: Image, debug_prints: bool=False) -> str | None:
+def decrypt(image: Image) -> str | None:
     """
     This function takes in an Image and decrypts the hidden message in it with this first algorithm.
     :param image: The image (as PIL.Image object) we will extract the hidden data.
@@ -242,13 +245,7 @@ def decrypt(image: Image, debug_prints: bool=False) -> str | None:
 
             decrypted_bits += half_byte_bin
 
-            #if debug_prints: print(f"{half_byte_index*100 / (int(decrypted_bits[:32], 2)*2 + 1):.2f}% of the message decrypted")
-
-
-
             if len(decrypted_bits) >= 32: # lenght of the 4 first bytes
-
-                #if debug_prints: print(f"{half_byte_index*25 / int(decrypted_bits[:32], 2)*2:.2f}% decrypted")
 
                 # stop and return if the number of bits decrypted is the same as the number of bits of the message
                 if half_byte_index == int(decrypted_bits[:32], 2)*2:
@@ -258,59 +255,77 @@ def decrypt(image: Image, debug_prints: bool=False) -> str | None:
     return None
 
 
-"""image_file_path = "C:/Users/timot/Python Projects/Steganography/first_algorithm/images/fhd_image_2.png"
-base_image = Image.open(image_file_path).convert("RGBA")
+if not running_as_exe:
+    print("Running as a python (.py) file here...")
+    exit()
+else:
+    print("Running as an executable (.exe) file here...")
 
-message = "Ceci est un exemple de texte simple qui sera répété pour atteindre la taille demandée. "
+# get all the parameters
+if not 3 <= len(sys.argv) <= 4:
+    raise SyntaxError("Please enter an appropriate number of arguments (usually 4 for encryption and 3 for decryption")
 
-new_image_data = encrypt(message, base_image)
-print(new_image_data)
+# * means the argument is optional
+# encryption - base_image.png - image_output.png   - message(str)/message.txt
+# decryption - base_image.png - message_output.txt
 
-new_image = recreate_image(base_image.size, new_image_data)
+# define the mode parameter
+mode = sys.argv[0]
 
-base_image.show()
-new_image.show()
+# assert there are the right number of parameters
+if not ((mode == "encryption" and len(sys.argv) == 4) or (mode == "decryption" and len(sys.argv) == 3)):
+    raise ValueError("Please enter valid parameters")
 
-# verify the hidden data
-decrypted = decrypt(new_image, debug_prints=True)
+# define all the last parameters
+base_image_path = sys.argv[1]
+output_path = sys.argv[2]
+if mode == "encryption":
+    message_to_encrypt = sys.argv[3]
 
-print(f"{decrypted = }")
-print(f"{string_to_binary(message) = }")
+# check if the image path points to a real file and if the file extension refers to an image file
+if not (os.path.exists(base_image_path) and os.path.splitext(base_image_path)[1] in [".png", ".jpg", ".jpeg"]):
+    raise NameError(f"The given path either doesn't point to a real file or an image file format supported. Given path : {base_image_path}")
 
-print(f"{binary_to_string(decrypted) = }")"""
+# if the path is correct, get the image as a PIL.Image object
+base_image = Image.open(base_image_path).convert("RGBA")
+
+# check the output path already exists
+if os.path.exists(output_path):
+    raise FileExistsError(f"The output file already exists at this location: {output_path}. Not able to overwrite it.")
+
+# check if the output file is an image if we want an image as an output
+if not (mode == "encryption" and os.path.splitext(base_image_path)[1] in [".png", ".jpg", ".jpeg"]):
+    raise ValueError(f"The provided output path does not match with the given mode: {os.path.splitext(base_image_path)[1]} are not the output for the {mode} mode...")
+
+# or a text file if we have a message as an output
+if not (mode == "decryption" and os.path.splitext(base_image_path)[1] == ".txt"):
+    raise ValueError(f"The provided output path does not match with the given mode: {os.path.splitext(base_image_path)[1]} are not the output for the {mode} mode...")
 
 
+# once all the params have been checked out, start encryption or decryption
+if mode == "encryption":
 
-image_file_path = "C:/Users/timot/Python Projects/Steganography/first_algorithm/images/fhd_image_2.png"
-base_image = Image.open(image_file_path).convert("RGBA")
+    # encrypt data into the image
+    new_image_data = encrypt(message=message_to_encrypt, image=base_image)
+    # convert the data into an PIL.Image image
+    new_image: Image = recreate_image(base_image.size, new_image_data)
+    # save the image with pil
+    base_image.save(output_path)
 
-message = "Ceci est un exemple de texte simple qui sera répété pour atteindre la taille demandée. "
-with open("C:/Users/timot/Python Projects/Steganography/big_text.txt", "r") as file:
-    message = file.read()
+elif mode == "decryption":
 
-new_image_data = encrypt(message, base_image)
-print(new_image_data)
+    # extract encrypted (hidden) data (in binary) from the image
+    extracted_data_bin = decrypt(image=base_image)
+    # convert this data from binary to text
+    extracted_message = binary_to_string(extracted_data_bin)
+    # save the message in a text file
+    with open(output_path, "w+") as output_file:
+        output_file.write(extracted_message)
 
-new_image = recreate_image(base_image.size, new_image_data)
+else:
+    raise ValueError("This mode does not exist. Please input encryption or decryption.")
 
-base_image.show()
-new_image.show()
 
-# verify the hidden data
-decrypted = decrypt(new_image, debug_prints=True)
-
-decrypted_string = binary_to_string(decrypted)
-
-print(f"{len(decrypted_string) = }")
-
-with open("C:/Users/timot/Python Projects/Steganography/hidden_message.txt", "w") as f:
-
-    f.write(decrypted_string)
-
-"""print(f"{decrypted = }")
-print(f"{string_to_binary(message) = }")
-
-print(f"{binary_to_string(decrypted) = }")"""
 
 
 
