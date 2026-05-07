@@ -5,13 +5,13 @@ from PIL import Image
 
 """# get the image and convert it to RGBA
 image_file_path = "C:/Users/timot/Python Projects/Steganography/first_algorithm/images/img.png"
-base_image = Image.open(image_file_path).convert("RGBA")
+base_image = Image.open(image_file_path).convert("RGBA")"""
 
 # check in which form this script is executed (as a .py or as a .exe)
 if getattr(sys, 'frozen', False): # executed as a .exe (compiled with PyInstaller because sys.frozen is added by PyInstaller)
     running_as_exe = True
 else: # executed as a .py
-    running_as_exe = False"""
+    running_as_exe = False
 
 # utils for the algorithm
 def string_to_binary(text: str) -> list[str]:
@@ -139,7 +139,7 @@ def encrypt(message: str, image: Image) -> list[tuple[int, ...]]:
     """
 
     # get all the pixels in the image in a list
-    image_data = list(image.get_flattened_data())
+    image_data = list(image.getdata())
 
     # convert the message in bytes
     message_bytes = string_to_binary(message)
@@ -167,9 +167,9 @@ def encrypt(message: str, image: Image) -> list[tuple[int, ...]]:
 
         new_pixel = []
 
-        for color_byte in pixel:
-            # not using the alpha byte (the 4th value in the pixel)
-            if color_byte == pixel[3]:
+        for i, color_byte in enumerate(pixel):
+            # not using the alpha byte (the 4th byte in the pixel)
+            if i == 3:
                 new_pixel.append(color_byte)
                 continue # skip
 
@@ -216,7 +216,7 @@ def decrypt(image: Image) -> str | None:
     """
 
     # get all the pixels in the image in a list
-    image_data = list(image.get_flattened_data())
+    image_data = list(image.getdata())
 
     # set the decrypted bits
     decrypted_bits = ""
@@ -225,10 +225,10 @@ def decrypt(image: Image) -> str | None:
 
     # we cycle through each tuple and each byte (excluding the alpha byte of each pixel)
     for pixel in image_data:
-        for color_byte in pixel:
+        for i, color_byte in enumerate(pixel):
 
             # not using the alpha byte (the 4th value in the pixel)
-            if color_byte == pixel[3]:
+            if i == 3:
                 continue  # skip
 
             half_byte_index += 1
@@ -262,7 +262,7 @@ else:
     print("Running as an executable (.exe) file here...")
 
 # get all the parameters
-if not 3 <= len(sys.argv) <= 4:
+if not 4 <= len(sys.argv) <= 5:
     raise SyntaxError("Please enter an appropriate number of arguments (usually 4 for encryption and 3 for decryption")
 
 # * means the argument is optional
@@ -270,17 +270,18 @@ if not 3 <= len(sys.argv) <= 4:
 # decryption - base_image.png - message_output.txt
 
 # define the mode parameter
-mode = sys.argv[0]
+mode = sys.argv[1]
 
 # assert there are the right number of parameters
-if not ((mode == "encryption" and len(sys.argv) == 4) or (mode == "decryption" and len(sys.argv) == 3)):
+if not ((mode == "encryption" and len(sys.argv) == 5) or (mode == "decryption" and len(sys.argv) == 4)):
     raise ValueError("Please enter valid parameters")
 
 # define all the last parameters
-base_image_path = sys.argv[1]
-output_path = sys.argv[2]
+base_image_path = sys.argv[2]
+output_path = sys.argv[3]
 if mode == "encryption":
-    message_to_encrypt = sys.argv[3]
+    message_to_encrypt = sys.argv[4]
+
 
 # check if the image path points to a real file and if the file extension refers to an image file
 if not (os.path.exists(base_image_path) and os.path.splitext(base_image_path)[1] in [".png", ".jpg", ".jpeg"]):
@@ -293,13 +294,16 @@ base_image = Image.open(base_image_path).convert("RGBA")
 if os.path.exists(output_path):
     raise FileExistsError(f"The output file already exists at this location: {output_path}. Not able to overwrite it.")
 
+
 # check if the output file is an image if we want an image as an output
-if not (mode == "encryption" and os.path.splitext(base_image_path)[1] in [".png", ".jpg", ".jpeg"]):
-    raise ValueError(f"The provided output path does not match with the given mode: {os.path.splitext(base_image_path)[1]} are not the output for the {mode} mode...")
+output_file_extension = os.path.splitext(output_path)[1]
+
+if mode == "encryption" and output_file_extension not in [".png", ".jpg", ".jpeg"]:
+    raise ValueError(f"The provided output path does not match with the given mode: {output_file_extension} are not the output for the {mode} mode...")
 
 # or a text file if we have a message as an output
-if not (mode == "decryption" and os.path.splitext(base_image_path)[1] == ".txt"):
-    raise ValueError(f"The provided output path does not match with the given mode: {os.path.splitext(base_image_path)[1]} are not the output for the {mode} mode...")
+if mode == "decryption" and output_file_extension != ".txt":
+    raise ValueError(f"The provided output path does not match with the given mode: {output_file_extension} are not the output for the {mode} mode...")
 
 
 # once all the params have been checked out, start encryption or decryption
@@ -310,7 +314,7 @@ if mode == "encryption":
     # convert the data into an PIL.Image image
     new_image: Image = recreate_image(base_image.size, new_image_data)
     # save the image with pil
-    base_image.save(output_path)
+    new_image.save(output_path)
 
 elif mode == "decryption":
 
