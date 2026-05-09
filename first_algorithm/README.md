@@ -45,14 +45,14 @@ For example, 1101 becomes 1011. Then we reverse the bits so 1011 becomes 0100.
 When encoding a value in a decimal color byte (in the parity of the second digit and the value of the third digit), the closest number that satisfies these two requirements (2nd digit parity and 3rd digit value) is considered as the inferior of superior one. If the last digit of the decimal byte we want to encode something in is under 5 (<5) or over 5 (>=5) we consider the closest number to the inferior/superior one. BUT the closest value must be in between 0 and 255.
 
 - By looking at the mathematical aspect of this we can see, each time, all the valids candidates numbers to be the closest are offset by 20 (for a given second digit pairty and a third digit).
-- For a second_digit_parity=0 (even) and third_digit=7 -> 7, 27, 47, 67, 87, 107, ..., 247
-- For a second_digit_parity=1 (odd) and third_digit=2 -> 16, 36, 56, 76, 96, 116, ..., 236 (next would be 256 but 255 < 256)
+- For a `second_digit_parity=0` (even) and `third_digit=7` -> 7, 27, 47, 67, 87, 107, ..., 247
+- For a `second_digit_parity=1` (odd) and `third_digit=2` -> 16, 36, 56, 76, 96, 116, ..., 236 (next would be 256, but 256 not in 0~255 range)
 
 So we only have to determine one "valid candidate" and then get all the valids candidates by using this 20-offset between those candidates.
 Then, we just have to get the closest number to the given one that is in this list of candidates.
 
 To determine the first valid candidate, we simply use the units' digit as a base and if the second digit parity must be odd we add 10 to this base.
-The first number in the valid candidates list, let's name it the "base candidate", can be written as: base_candidate = third_digit + 10 * second_digit_parity (because the parity is either 0 or 1 as even or odd)
+The first number in the valid candidates list, let's name it the "base candidate", can be written as: `base_candidate = third_digit + 10 * second_digit_parity` (because the parity is either 0 or 1 as even or odd)
 
 
 ## Conclusion and performances :
